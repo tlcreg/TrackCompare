@@ -266,7 +266,7 @@ const TR = 130;   // curve radius
 const PERIM = 4 * SL + 2 * Math.PI * TR; // ~1817 px → 400 m
 
 function trackPos(distMeters) {
-  const d = ((distMeters % 400) + 400) % 400;
+  const d = (((distMeters + startOffset) % 400) + 400) % 400;
   const px = d * (PERIM / 400);
 
   // Counter-clockwise: top-left → bottom-left → bottom-right → top-right → top-left
@@ -293,6 +293,14 @@ function trackPos(distMeters) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// RACE CONFIG  (read from data file, with 5k defaults)
+// ═══════════════════════════════════════════════════════════
+const startOffset  = (typeof RACE_START_OFFSET !== 'undefined') ? RACE_START_OFFSET : 0;
+const totalDist    = SPLIT_DISTANCES[SPLIT_DISTANCES.length - 1]; // e.g. 5000 or 1609
+const splitCount   = SPLIT_DISTANCES.length;                      // e.g. 13 or 4
+const totalLaps    = Math.ceil((totalDist + startOffset) / 400);  // display laps
+
+// ═══════════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════════
 let selected = new Set([0, 1, 2, 3, 4]);
@@ -307,22 +315,22 @@ const raceData = runners.map(r => ({
   cumSecs: r.cumulative.map(toSeconds)
 }));
 
-const maxTime = Math.max(...raceData.map(r => r.cumSecs[12]));
+const maxTime = Math.max(...raceData.map(r => r.cumSecs[splitCount - 1]));
 
 // ═══════════════════════════════════════════════════════════
 // INTERPOLATION
 // ═══════════════════════════════════════════════════════════
 function runnerDist(r, T) {
   if (T <= 0) return 0;
-  if (T >= r.cumSecs[12]) return 5000;
-  if (T <= r.cumSecs[0]) return (T / r.cumSecs[0]) * 200;
-  for (let i = 0; i < 12; i++) {
+  if (T >= r.cumSecs[splitCount - 1]) return totalDist;
+  if (T <= r.cumSecs[0]) return (T / r.cumSecs[0]) * SPLIT_DISTANCES[0];
+  for (let i = 0; i < splitCount - 1; i++) {
     if (T <= r.cumSecs[i + 1]) {
       const p = (T - r.cumSecs[i]) / (r.cumSecs[i + 1] - r.cumSecs[i]);
       return SPLIT_DISTANCES[i] + p * (SPLIT_DISTANCES[i + 1] - SPLIT_DISTANCES[i]);
     }
   }
-  return 5000;
+  return totalDist;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -388,9 +396,11 @@ function drawFrame() {
   ctx.closePath();
   ctx.fill();
 
-  // Start line at top-left corner (0m), finish at bottom-right (200m = 5000m mark)
-  drawLapMark(0, '#fff', 2, 'START');
-  drawLapMark(200, '#FF4444', 2, 'FINISH');
+  // Start and finish markers — positions derived from startOffset and totalDist
+  const startMark  = startOffset % 400;
+  const finishMark = (startOffset + totalDist) % 400;
+  drawLapMark(startMark,  '#ffffff', 2, 'START');
+  drawLapMark(finishMark, '#FF4444', 2, 'FINISH');
 
   // Current standings in infield
   const order = [...selected]
@@ -455,7 +465,7 @@ function drawFrame() {
 
   // Time + lap overlay (top-right)
   const leaderDist = runnerDist(raceData[0], animTime);
-  const lap = Math.min(Math.floor(leaderDist / 400) + 1, 13);
+  const lap = Math.min(Math.floor(leaderDist / 400) + 1, totalLaps);
   ctx.textBaseline = 'top';
   ctx.font = 'bold 11px monospace';
   ctx.fillStyle = '#fff';
@@ -463,7 +473,7 @@ function drawFrame() {
   ctx.fillText(tStr, canvas.width - ctx.measureText(tStr).width - 10, 10);
   ctx.font = '10px sans-serif';
   ctx.fillStyle = '#555';
-  ctx.fillText(`Lap ${lap} / 13`, canvas.width - 62, 24);
+  ctx.fillText(`Lap ${lap} / ${totalLaps}`, canvas.width - 70, 24);
 }
 
 // ═══════════════════════════════════════════════════════════
