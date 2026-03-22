@@ -199,7 +199,7 @@
 
 <header>
   <h1>TrackCompare</h1>
-  <span>5000m · 400m track · March 2026</span>
+  <span>5000m · 400m track · March 21, 2026</span>
 </header>
 
 <div id="canvas-section">
@@ -260,10 +260,10 @@ const COLORS = [
 // ═══════════════════════════════════════════════════════════
 // TRACK GEOMETRY  (canvas px)
 // ═══════════════════════════════════════════════════════════
-const CX = 480, CY = 150;
-const SL = 210;   // half-straight length
-const TR = 95;    // curve radius
-const PERIM = 4 * SL + 2 * Math.PI * TR; // ~1437 px → 400 m
+const CX = 480, CY = 205;
+const SL = 250;   // half-straight length
+const TR = 130;   // curve radius
+const PERIM = 4 * SL + 2 * Math.PI * TR; // ~1817 px → 400 m
 
 function trackPos(distMeters) {
   const d = ((distMeters % 400) + 400) % 400;
@@ -442,15 +442,15 @@ function drawFrame() {
     ctx.stroke();
   });
 
-  // Race title
+  // Race title — centered
   ctx.textBaseline = 'top';
   ctx.textAlign = 'center';
-  ctx.font = 'bold 13px sans-serif';
+  ctx.font = 'bold 15px sans-serif';
   ctx.fillStyle = '#fff';
-  ctx.fillText('Tucson Track Club Classic', canvas.width / 2, 8);
-  ctx.font = '10px sans-serif';
-  ctx.fillStyle = '#666';
-  ctx.fillText('5000m · 400m Track', canvas.width / 2, 24);
+  ctx.fillText('Tucson Track Club Classic', 480, 10);
+  ctx.font = '11px sans-serif';
+  ctx.fillStyle = '#888';
+  ctx.fillText('5000m  ·  400m Track  ·  March 21, 2026', 480, 29);
   ctx.textAlign = 'left';
 
   // Time + lap overlay (top-right)
@@ -694,7 +694,7 @@ document.getElementById('gifBtn').addEventListener('click', async () => {
 // Crisp rendering on retina/HiDPI displays
 (function scaleCanvas() {
   const dpr = window.devicePixelRatio || 1;
-  const W = 960, H = 300;
+  const W = 960, H = 410;
   canvas.width  = W * dpr;
   canvas.height = H * dpr;
   canvas.style.width  = W + 'px';
