@@ -95,8 +95,6 @@
     #speedSlider { width: 70px; accent-color: #0066cc; cursor: pointer; }
     #speedVal { color: #fff; min-width: 28px; }
 
-    #gifStatus { font-size: 11px; color: #666; white-space: nowrap; }
-
     .section-title {
       font-size: 10px;
       text-transform: uppercase;
@@ -232,8 +230,6 @@
       <input type="range" id="speedSlider" min="1" max="60" value="10">
       <span id="speedVal">10×</span>
     </div>
-    <button id="gifBtn">⬇ Export GIF</button>
-    <span id="gifStatus"></span>
   </div>
 </div>
 
@@ -281,8 +277,9 @@ const SL = 250;   // half-straight length
 const TR = 130;   // curve radius
 const PERIM = 4 * SL + 2 * Math.PI * TR; // ~1817 px → 400 m
 
-function trackPos(distMeters) {
-  const d = (((distMeters + startOffset) % 400) + 400) % 400;
+// trackPosLoop: takes a raw loop position (0–400m), no startOffset applied
+function trackPosLoop(loopMeters) {
+  const d = ((loopMeters % 400) + 400) % 400;
   const px = d * (PERIM / 400);
 
   // Counter-clockwise: top-left → bottom-left → bottom-right → top-right → top-left
@@ -306,6 +303,11 @@ function trackPos(distMeters) {
     // Top straight — going LEFT
     return { x: CX + SL - (px - s3), y: CY - TR };
   }
+}
+
+// trackPos: takes a race distance (adds startOffset internally, for runner dots)
+function trackPos(distMeters) {
+  return trackPosLoop(distMeters + startOffset);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -413,9 +415,10 @@ function drawOval(lineWidth, color) {
   ctx.stroke();
 }
 
+// distM is a loop position (0–400m), not a race distance
 function drawLapMark(distM, color, width, label) {
-  const p = trackPos(distM);
-  const next = trackPos(distM + 0.5);
+  const p = trackPosLoop(distM);
+  const next = trackPosLoop(distM + 0.5);
   const dx = next.x - p.x, dy = next.y - p.y;
   const len = Math.sqrt(dx*dx + dy*dy) || 1;
   const nx = -dy/len * 10, ny = dx/len * 10;
@@ -522,6 +525,15 @@ function drawFrame() {
   ctx.font = '11px sans-serif';
   ctx.fillStyle = '#888';
   ctx.fillText(activeRace.subtitle, 480, 29);
+  ctx.textAlign = 'left';
+
+  // Watermark (bottom-right corner)
+  ctx.textBaseline = 'bottom';
+  ctx.textAlign = 'right';
+  ctx.font = '9px sans-serif';
+  ctx.fillStyle = '#444';
+  ctx.fillText('Timing splits from Roadrunner Race Timing', 952, 406);
+  ctx.fillText('Visualization created by: Tucker Creger', 952, 395);
   ctx.textAlign = 'left';
 
   // Time + lap overlay (top-right)
@@ -696,69 +708,6 @@ document.getElementById('speedSlider').addEventListener('input', e => {
 });
 
 // ═══════════════════════════════════════════════════════════
-// GIF EXPORT
-// ═══════════════════════════════════════════════════════════
-document.getElementById('gifBtn').addEventListener('click', async () => {
-  const btn    = document.getElementById('gifBtn');
-  const status = document.getElementById('gifStatus');
-
-  if (typeof GIF === 'undefined') {
-    status.textContent = 'gif.js not loaded — check internet connection';
-    return;
-  }
-
-  btn.disabled = true;
-  const wasPlaying = isPlaying;
-  if (isPlaying) { isPlaying = false; cancelAnimationFrame(rafId); lastTs = null; }
-
-  const savedTime = animTime;
-  animTime = 0;
-
-  const gif = new GIF({
-    workers: 2,
-    quality: 8,
-    width: canvas.width,
-    height: canvas.height,
-    workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js'
-  });
-
-  const FPS = 15;
-  const STEP = 1 / FPS; // seconds of race time per frame at 1x... but we want reasonable length
-  // Target ~8s gif at 15fps = 120 frames, so race_step = maxTime / 120
-  const raceStep = maxTime / 120;
-
-  let t = 0;
-  function captureNext() {
-    animTime = Math.min(t, maxTime);
-    drawFrame();
-    gif.addFrame(canvas, { copy: true, delay: Math.round(1000 / FPS) });
-    t += raceStep;
-    const pct = Math.round((animTime / maxTime) * 100);
-    status.textContent = `Recording ${pct}%…`;
-    if (animTime < maxTime) {
-      setTimeout(captureNext, 0);
-    } else {
-      status.textContent = 'Encoding…';
-      gif.on('finished', blob => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'race_replay.gif';
-        a.click();
-        URL.revokeObjectURL(url);
-        status.textContent = 'Saved!';
-        setTimeout(() => { status.textContent = ''; }, 3000);
-      });
-      gif.render();
-      animTime = savedTime;
-      drawFrame();
-      btn.disabled = false;
-    }
-  }
-  captureNext();
-});
-
-// ═══════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════
 
@@ -777,8 +726,6 @@ buildRaceSelector();
 loadRace(RACES[0]);
 </script>
 
-<!-- gif.js loaded last so missing CDN doesn't block the app -->
-<script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js" onerror="console.warn('gif.js not loaded')"></script>
 
 </body>
 </html>
