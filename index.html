@@ -193,13 +193,29 @@
     .gap-leader { color: #aaa; }
     .gap-behind { color: #e07070; }
     .gap-ahead  { color: #6ecf8e; }
+
+    /* ── Race selector ── */
+    #race-selector { display: flex; gap: 6px; margin-left: auto; }
+    .race-btn {
+      background: #1e1e1e;
+      color: #888;
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 4px 14px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .race-btn:hover { background: #2a2a2a; color: #ccc; }
+    .race-btn.active { background: #004eaa; border-color: #0066cc; color: #fff; }
   </style>
 </head>
 <body>
 
 <header>
   <h1>TrackCompare</h1>
-  <span>5000m · 400m track · March 21, 2026</span>
+  <span>Tucson Track Club Classic · March 21, 2026</span>
+  <div id="race-selector"></div>
 </header>
 
 <div id="canvas-section">
@@ -235,7 +251,7 @@
   </div>
 </div>
 
-<script src="data.js"></script>
+<script src="races.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════
 // COLORS
@@ -293,12 +309,13 @@ function trackPos(distMeters) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// RACE CONFIG  (read from data file, with 5k defaults)
+// RACE CONFIG  (mutable — updated by loadRace)
 // ═══════════════════════════════════════════════════════════
-const startOffset  = (typeof RACE_START_OFFSET !== 'undefined') ? RACE_START_OFFSET : 0;
-const totalDist    = SPLIT_DISTANCES[SPLIT_DISTANCES.length - 1]; // e.g. 5000 or 1609
-const splitCount   = SPLIT_DISTANCES.length;                      // e.g. 13 or 4
-const totalLaps    = Math.ceil((totalDist + startOffset) / 400);  // display laps
+let startOffset  = 0;
+let totalDist    = 5000;
+let splitCount   = 13;
+let totalLaps    = 13;
+let SPLIT_DISTANCES = [];
 
 // ═══════════════════════════════════════════════════════════
 // STATE
@@ -309,13 +326,56 @@ let isPlaying = false;
 let speed     = 10;
 let lastTs    = null;
 let rafId     = null;
+let raceData  = [];
+let maxTime   = 0;
 
-const raceData = runners.map(r => ({
-  ...r,
-  cumSecs: r.cumulative.map(toSeconds)
-}));
+// ─── Load a race from the RACES array ───────────────────────
+function loadRace(race) {
+  // Stop any running animation
+  isPlaying = false;
+  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  lastTs = null;
+  animTime = 0;
 
-const maxTime = Math.max(...raceData.map(r => r.cumSecs[splitCount - 1]));
+  // Apply race config
+  SPLIT_DISTANCES = race.splitDistances;
+  startOffset     = race.startOffset;
+  totalDist       = SPLIT_DISTANCES[SPLIT_DISTANCES.length - 1];
+  splitCount      = SPLIT_DISTANCES.length;
+  totalLaps       = Math.ceil((totalDist + startOffset) / 400);
+  raceData        = race.runners.map(r => ({ ...r, cumSecs: r.cumulative.map(toSeconds) }));
+  maxTime         = Math.max(...raceData.map(r => r.cumSecs[splitCount - 1]));
+  selected        = new Set([0, 1, 2, 3, 4].filter(i => i < raceData.length));
+
+  // Update scrubber range
+  document.getElementById('scrubber').value = 0;
+  document.getElementById('scrubber').max   = maxTime;
+  document.getElementById('timeDisplay').textContent = '0:00.0';
+  setPlayBtn(false);
+
+  // Rebuild UI
+  buildRunnerList();
+  buildDeltaTable();
+  drawFrame();
+  updateHighlight();
+}
+
+// ─── Race selector buttons ────────────────────────────────
+function buildRaceSelector() {
+  const el = document.getElementById('race-selector');
+  el.innerHTML = '';
+  RACES.forEach(race => {
+    const btn = document.createElement('button');
+    btn.className = 'race-btn' + (race === RACES[0] ? ' active' : '');
+    btn.textContent = race.label;
+    btn.addEventListener('click', () => {
+      el.querySelectorAll('.race-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      loadRace(race);
+    });
+    el.appendChild(btn);
+  });
+}
 
 // ═══════════════════════════════════════════════════════════
 // INTERPOLATION
@@ -452,15 +512,16 @@ function drawFrame() {
     ctx.stroke();
   });
 
-  // Race title — centered
+  // Race title — centered, pulled from active race config
+  const activeRace = RACES.find(r => r.splitDistances === SPLIT_DISTANCES) || RACES[0];
   ctx.textBaseline = 'top';
   ctx.textAlign = 'center';
   ctx.font = 'bold 15px sans-serif';
   ctx.fillStyle = '#fff';
-  ctx.fillText('Tucson Track Club Classic', 480, 10);
+  ctx.fillText(activeRace.title, 480, 10);
   ctx.font = '11px sans-serif';
   ctx.fillStyle = '#888';
-  ctx.fillText('5000m  ·  400m Track  ·  March 21, 2026', 480, 29);
+  ctx.fillText(activeRace.subtitle, 480, 29);
   ctx.textAlign = 'left';
 
   // Time + lap overlay (top-right)
@@ -712,10 +773,8 @@ document.getElementById('gifBtn').addEventListener('click', async () => {
   ctx.scale(dpr, dpr);
 })();
 
-document.getElementById('scrubber').max = maxTime;
-buildRunnerList();
-buildDeltaTable();
-drawFrame();
+buildRaceSelector();
+loadRace(RACES[0]);
 </script>
 
 <!-- gif.js loaded last so missing CDN doesn't block the app -->
