@@ -420,7 +420,11 @@ function loadRace(race) {
   startOffset     = race.startOffset;
   totalDist       = SPLIT_DISTANCES[SPLIT_DISTANCES.length - 1];
   splitCount      = SPLIT_DISTANCES.length;
-  totalLaps       = Math.ceil((totalDist + startOffset) / 400);
+  // 5k has a 200m opener (half lap) → 12 full laps; mile has no opener → 4 laps
+  const firstSplit = SPLIT_DISTANCES[0];
+  totalLaps = firstSplit < 400
+    ? Math.round((totalDist - firstSplit) / 400)   // e.g. (5000-200)/400 = 12
+    : Math.floor(totalDist / 400);                 // e.g. floor(1609/400) = 4
   raceData        = race.runners.map(r => ({ ...r, cumSecs: r.cumulative.map(toSeconds) }));
   maxTime         = Math.max(...raceData.map(r => r.cumSecs[splitCount - 1]));
   selected        = new Set([0, 1, 2, 3, 4].filter(i => i < raceData.length));
@@ -617,7 +621,17 @@ function drawFrame() {
 
   // Time + lap overlay (top-right)
   const leaderDist = runnerDist(raceData[0], animTime);
-  const lap = Math.min(Math.floor(leaderDist / 400) + 1, totalLaps);
+  const firstSplit = SPLIT_DISTANCES[0];
+  const hasOpener  = firstSplit < 400;
+  let lap;
+  if (hasOpener) {
+    // 5k: show 0 during the 200m opener, then count full 400m laps
+    lap = leaderDist < firstSplit ? 0 : 1 + Math.floor((leaderDist - firstSplit) / 400);
+  } else {
+    // Mile: start at 1, advance every 400m
+    lap = Math.floor(leaderDist / 400) + 1;
+  }
+  lap = Math.min(lap, totalLaps);
   ctx.textBaseline = 'top';
   ctx.font = 'bold 11px monospace';
   ctx.fillStyle = '#fff';
