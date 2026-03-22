@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TrackCompare — 5000m</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d0d0d;
+      color: #ccc;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 12px;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      padding: 9px 16px;
+      background: #161616;
+      border-bottom: 1px solid #222;
+      flex-shrink: 0;
+    }
+
+    header h1 { font-size: 15px; font-weight: 700; color: #fff; }
+    header span { font-size: 11px; color: #555; }
+
+    #main { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Left panel ── */
+    #left-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 12px;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    #canvas-wrap {
+      background: #161616;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #222;
+      flex-shrink: 0;
+    }
+
+    #trackCanvas { display: block; width: 100%; }
+
+    #controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: #1e1e1e;
+      color: #ccc;
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 5px 12px;
+      cursor: pointer;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    button:hover { background: #2a2a2a; }
+    button.active { background: #004eaa; border-color: #0066cc; color: #fff; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    #scrubber { flex: 1; min-width: 60px; accent-color: #0066cc; cursor: pointer; }
+
+    #timeDisplay {
+      font-family: 'SF Mono', 'Menlo', monospace;
+      font-size: 12px;
+      color: #fff;
+      min-width: 62px;
+    }
+
+    .speed-group { display: flex; align-items: center; gap: 5px; color: #555; }
+    #speedSlider { width: 70px; accent-color: #0066cc; cursor: pointer; }
+    #speedVal { color: #fff; min-width: 28px; }
+
+    #gifStatus { font-size: 11px; color: #666; white-space: nowrap; }
+
+    /* ── Right panel ── */
+    #right-panel {
+      width: 300px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid #222;
+      overflow: hidden;
+    }
+
+    .panel-section {
+      padding: 10px 12px;
+      border-bottom: 1px solid #1e1e1e;
+    }
+
+    .section-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #444;
+      margin-bottom: 7px;
+    }
+
+    /* Runner list */
+    .runner-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 2px 0;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .runner-row input[type=checkbox] { cursor: pointer; flex-shrink: 0; }
+    .color-swatch { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .runner-name { flex: 1; }
+    .runner-meta { color: #444; font-size: 11px; white-space: nowrap; }
+
+    /* Delta table */
+    #delta-wrap {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px;
+    }
+
+    #delta-wrap .section-title {
+      position: sticky;
+      top: 0;
+      background: #0d0d0d;
+      padding-bottom: 4px;
+      margin-bottom: 0;
+    }
+
+    #deltaTable {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      font-family: 'SF Mono', 'Menlo', monospace;
+    }
+
+    #deltaTable th {
+      padding: 4px 3px 2px;
+      text-align: right;
+      font-weight: normal;
+      position: sticky;
+      top: 18px;
+      background: #0d0d0d;
+      border-bottom: 1px solid #222;
+      white-space: nowrap;
+      overflow: hidden;
+      max-width: 48px;
+    }
+
+    #deltaTable th:first-child { text-align: left; color: #444; }
+
+    #deltaTable td {
+      padding: 3px 3px;
+      text-align: right;
+      border-bottom: 1px solid #191919;
+      color: #555;
+    }
+
+    #deltaTable td:first-child { text-align: left; color: #444; }
+
+    #deltaTable tr.highlight { background: #0e1e30; }
+    #deltaTable tr.highlight td:first-child { color: #4a9eff; }
+
+    .gap-leader { color: #aaa; }
+    .gap-behind { color: #e07070; }
+    .gap-ahead  { color: #6ecf8e; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>TrackCompare</h1>
+  <span>5000m · 400m track · March 2026</span>
+</header>
+
+<div id="main">
+
+  <div id="left-panel">
+    <div id="canvas-wrap">
+      <canvas id="trackCanvas" width="720" height="260"></canvas>
+    </div>
+
+    <div id="controls">
+      <button id="playBtn">▶ Play</button>
+      <button id="resetBtn">↺ Reset</button>
+      <input type="range" id="scrubber" min="0" step="0.05" value="0">
+      <span id="timeDisplay">0:00.0</span>
+      <div class="speed-group">
+        Speed
+        <input type="range" id="speedSlider" min="1" max="60" value="10">
+        <span id="speedVal">10×</span>
+      </div>
+      <button id="gifBtn">⬇ Export GIF</button>
+      <span id="gifStatus"></span>
+    </div>
+  </div>
+
+  <div id="right-panel">
+    <div class="panel-section">
+      <div class="section-title">Runners</div>
+      <div id="runnerList"></div>
+    </div>
+    <div id="delta-wrap">
+      <div class="section-title">Gap vs Leader (s)</div>
+      <table id="deltaTable">
+        <thead><tr id="deltaHead"></tr></thead>
+        <tbody id="deltaBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="data.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════
+// COLORS
+// ═══════════════════════════════════════════════════════════
+const COLORS = [
+  '#FFB347', // 1  Beau     – gold
+  '#4FC3F7', // 2  Tucker   – sky blue
+  '#81C784', // 3  Naoya    – green
+  '#F48FB1', // 4  Sailor   – pink
+  '#CE93D8', // 5  Annie    – purple
+  '#80DEEA', // 6  Peter    – cyan
+  '#FFCC02', // 7  Brian    – yellow
+  '#FF8A65', // 8  Freddie  – orange
+  '#A5D6A7', // 9  Thomas   – light green
+  '#90CAF9', // 10 Ryan     – light blue
+  '#BCAAA4', // 11 Camryn   – tan
+  '#EF9A9A', // 12 Paul     – salmon
+  '#B0BEC5', // 13 Payton   – blue-grey
+  '#EEEEEE', // 14 David    – white
+];
+
+// ═══════════════════════════════════════════════════════════
+// TRACK GEOMETRY  (canvas px)
+// ═══════════════════════════════════════════════════════════
+const CX = 355, CY = 128;
+const SL = 145;   // half-straight length
+const TR = 68;    // curve radius
+const PERIM = 4 * SL + 2 * Math.PI * TR; // ~1007 px → 400 m
+
+function trackPos(distMeters) {
+  const d = ((distMeters % 400) + 400) % 400;
+  const px = d * (PERIM / 400);
+
+  const s1 = 2 * SL;
+  const s2 = s1 + Math.PI * TR;
+  const s3 = s2 + 2 * SL;
+
+  if (px <= s1) {
+    return { x: CX - SL + px, y: CY + TR };
+  } else if (px <= s2) {
+    const a = Math.PI / 2 - (px - s1) / TR;
+    return { x: CX + SL + TR * Math.cos(a), y: CY + TR * Math.sin(a) };
+  } else if (px <= s3) {
+    return { x: CX + SL - (px - s2), y: CY - TR };
+  } else {
+    const a = -Math.PI / 2 - (px - s3) / TR;
+    return { x: CX - SL + TR * Math.cos(a), y: CY + TR * Math.sin(a) };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let selected = new Set([0, 1, 2, 3, 4]);
+let animTime  = 0;
+let isPlaying = false;
+let speed     = 10;
+let lastTs    = null;
+let rafId     = null;
+
+const raceData = runners.map(r => ({
+  ...r,
+  cumSecs: r.cumulative.map(toSeconds)
+}));
+
+const maxTime = Math.max(...raceData.map(r => r.cumSecs[12]));
+
+// ═══════════════════════════════════════════════════════════
+// INTERPOLATION
+// ═══════════════════════════════════════════════════════════
+function runnerDist(r, T) {
+  if (T <= 0) return 0;
+  if (T >= r.cumSecs[12]) return 5000;
+  if (T <= r.cumSecs[0]) return (T / r.cumSecs[0]) * 200;
+  for (let i = 0; i < 12; i++) {
+    if (T <= r.cumSecs[i + 1]) {
+      const p = (T - r.cumSecs[i]) / (r.cumSecs[i + 1] - r.cumSecs[i]);
+      return SPLIT_DISTANCES[i] + p * (SPLIT_DISTANCES[i + 1] - SPLIT_DISTANCES[i]);
+    }
+  }
+  return 5000;
+}
+
+// ═══════════════════════════════════════════════════════════
+// CANVAS DRAWING
+// ═══════════════════════════════════════════════════════════
+const canvas = document.getElementById('trackCanvas');
+const ctx    = canvas.getContext('2d');
+
+function drawOval(lineWidth, color) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = 'butt';
+  ctx.beginPath();
+  ctx.moveTo(CX - SL, CY + TR);
+  ctx.lineTo(CX + SL, CY + TR);
+  ctx.arc(CX + SL, CY, TR, Math.PI / 2, -Math.PI / 2, false);
+  ctx.lineTo(CX - SL, CY - TR);
+  ctx.arc(CX - SL, CY, TR, -Math.PI / 2, Math.PI / 2, false);
+  ctx.closePath();
+  ctx.stroke();
+}
+
+function drawLapMark(distM, color, width, label) {
+  const p = trackPos(distM);
+  const next = trackPos(distM + 0.5);
+  const dx = next.x - p.x, dy = next.y - p.y;
+  const len = Math.sqrt(dx*dx + dy*dy) || 1;
+  const nx = -dy/len * 10, ny = dx/len * 10;
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.beginPath();
+  ctx.moveTo(p.x - nx, p.y - ny);
+  ctx.lineTo(p.x + nx, p.y + ny);
+  ctx.stroke();
+
+  if (label) {
+    ctx.font = '9px sans-serif';
+    ctx.fillStyle = color;
+    ctx.fillText(label, p.x + nx + 2, p.y + ny + 3);
+  }
+}
+
+function drawFrame() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#161616';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Track layers
+  drawOval(26, '#1a1a1a');   // border/shadow
+  drawOval(22, '#2b2b2b');   // track surface
+  drawOval(14, '#333');      // inner lane
+
+  // Infield
+  ctx.fillStyle = '#1a2a1a';
+  ctx.beginPath();
+  ctx.moveTo(CX - SL, CY + TR - 11);
+  ctx.lineTo(CX + SL, CY + TR - 11);
+  ctx.arc(CX + SL, CY, TR - 11, Math.PI / 2, -Math.PI / 2, false);
+  ctx.lineTo(CX - SL, CY - TR + 11);
+  ctx.arc(CX - SL, CY, TR - 11, -Math.PI / 2, Math.PI / 2, false);
+  ctx.closePath();
+  ctx.fill();
+
+  // Lap marks every 400m (start/finish line and interior marks)
+  drawLapMark(0, '#fff', 2, 'S/F');
+  // 200m finish line
+  const finishDist = 5000 % 400; // = 200m
+  drawLapMark(finishDist, '#FF4444', 2, 'FIN');
+
+  // Current standings in infield
+  const order = [...selected]
+    .map(i => ({ i, d: runnerDist(raceData[i], animTime) }))
+    .sort((a, b) => b.d - a.d);
+
+  ctx.textBaseline = 'top';
+  const infieldX = CX - SL + 18;
+  const infieldY = CY - 32;
+  order.forEach(({ i, d }, rank) => {
+    const r = raceData[i];
+    const done = d >= 5000;
+    ctx.font = `${rank < 3 ? 'bold ' : ''}10px sans-serif`;
+    ctx.fillStyle = done ? '#555' : COLORS[i];
+    const laps = Math.floor(d / 400);
+    const label = `${rank + 1}. ${r.name.split(' ')[0]}${done ? ' ✓' : ''}`;
+    ctx.fillText(label, infieldX, infieldY + rank * 13);
+  });
+
+  // Runner dots (draw back-runners first so leaders render on top)
+  [...order].reverse().forEach(({ i, d }) => {
+    const pos = trackPos(d);
+    const done = d >= 5000;
+
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = done ? '#333' : COLORS[i];
+    ctx.fill();
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  });
+
+  // Time + lap overlay (top-right)
+  const leaderDist = runnerDist(raceData[0], animTime);
+  const lap = Math.min(Math.floor(leaderDist / 400) + 1, 13);
+  ctx.textBaseline = 'top';
+  ctx.font = 'bold 11px monospace';
+  ctx.fillStyle = '#fff';
+  const tStr = fmtTime(animTime);
+  ctx.fillText(tStr, canvas.width - ctx.measureText(tStr).width - 10, 10);
+  ctx.font = '10px sans-serif';
+  ctx.fillStyle = '#555';
+  ctx.fillText(`Lap ${lap} / 13`, canvas.width - 62, 24);
+}
+
+// ═══════════════════════════════════════════════════════════
+// ANIMATION LOOP
+// ═══════════════════════════════════════════════════════════
+function tick(ts) {
+  if (!isPlaying) return;
+  if (lastTs === null) lastTs = ts;
+  const dt = ((ts - lastTs) / 1000) * speed;
+  lastTs = ts;
+
+  animTime = Math.min(animTime + dt, maxTime);
+  drawFrame();
+  syncScrubber();
+  updateHighlight();
+
+  if (animTime >= maxTime) {
+    isPlaying = false;
+    setPlayBtn(false);
+    lastTs = null;
+  } else {
+    rafId = requestAnimationFrame(tick);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════
+function fmtTime(s) {
+  const m = Math.floor(s / 60);
+  const rem = (s % 60).toFixed(1).padStart(4, '0');
+  return `${m}:${rem}`;
+}
+
+function fmtDelta(secs) {
+  if (secs < 0.001) return '—';
+  const sign = secs < 0 ? '−' : '+';
+  const abs = Math.abs(secs);
+  const m = Math.floor(abs / 60);
+  const rem = (abs % 60).toFixed(3).padStart(6, '0');
+  return m > 0 ? `${sign}${m}:${rem}` : `${sign}${rem}`;
+}
+
+function syncScrubber() {
+  document.getElementById('scrubber').value = animTime;
+  document.getElementById('timeDisplay').textContent = fmtTime(animTime);
+}
+
+function setPlayBtn(playing) {
+  const btn = document.getElementById('playBtn');
+  btn.textContent = playing ? '⏸ Pause' : '▶ Play';
+  playing ? btn.classList.add('active') : btn.classList.remove('active');
+}
+
+// ═══════════════════════════════════════════════════════════
+// UI: RUNNER LIST
+// ═══════════════════════════════════════════════════════════
+function buildRunnerList() {
+  const list = document.getElementById('runnerList');
+  list.innerHTML = '';
+  raceData.forEach((r, i) => {
+    const label = document.createElement('label');
+    label.className = 'runner-row';
+    label.innerHTML = `
+      <input type="checkbox" ${selected.has(i) ? 'checked' : ''}>
+      <span class="color-swatch" style="background:${COLORS[i]}"></span>
+      <span class="runner-name">${r.name}</span>
+      <span class="runner-meta">#${r.place} · ${r.finalTime}</span>
+    `;
+    label.querySelector('input').addEventListener('change', e => {
+      e.target.checked ? selected.add(i) : selected.delete(i);
+      buildDeltaTable();
+      drawFrame();
+    });
+    list.appendChild(label);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// UI: DELTA TABLE
+// ═══════════════════════════════════════════════════════════
+function buildDeltaTable() {
+  const sel = [...selected].sort((a, b) => a - b);
+  const leaderSecs = raceData[0].cumSecs;
+
+  document.getElementById('deltaHead').innerHTML =
+    `<th>Split</th>` +
+    sel.map(i =>
+      `<th style="color:${COLORS[i]};max-width:44px;overflow:hidden">${raceData[i].name.split(' ')[0]}</th>`
+    ).join('');
+
+  document.getElementById('deltaBody').innerHTML =
+    SPLIT_DISTANCES.map((dist, si) =>
+      `<tr id="sr${si}">
+        <td>${dist}m</td>
+        ${sel.map(i => {
+          const gap = raceData[i].cumSecs[si] - leaderSecs[si];
+          if (i === 0) return `<td class="gap-leader">${raceData[i].cumulative[si]}</td>`;
+          if (gap < 0.001) return `<td class="gap-leader">${raceData[i].cumulative[si]}</td>`;
+          return `<td class="gap-behind">${fmtDelta(gap)}</td>`;
+        }).join('')}
+      </tr>`
+    ).join('');
+}
+
+function updateHighlight() {
+  document.querySelectorAll('#deltaBody tr').forEach(r => r.classList.remove('highlight'));
+  const leaderDist = runnerDist(raceData[0], animTime);
+  let idx = -1;
+  for (let i = 0; i < SPLIT_DISTANCES.length; i++) {
+    if (leaderDist >= SPLIT_DISTANCES[i]) idx = i;
+  }
+  if (idx >= 0) {
+    const row = document.getElementById(`sr${idx}`);
+    if (row) {
+      row.classList.add('highlight');
+      row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// CONTROLS
+// ═══════════════════════════════════════════════════════════
+document.getElementById('playBtn').addEventListener('click', () => {
+  isPlaying = !isPlaying;
+  setPlayBtn(isPlaying);
+  if (isPlaying) {
+    if (animTime >= maxTime) animTime = 0;
+    lastTs = null;
+    rafId = requestAnimationFrame(tick);
+  } else {
+    cancelAnimationFrame(rafId);
+    lastTs = null;
+  }
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  isPlaying = false;
+  cancelAnimationFrame(rafId);
+  lastTs = null;
+  animTime = 0;
+  setPlayBtn(false);
+  syncScrubber();
+  drawFrame();
+  updateHighlight();
+});
+
+document.getElementById('scrubber').addEventListener('input', e => {
+  animTime = parseFloat(e.target.value);
+  document.getElementById('timeDisplay').textContent = fmtTime(animTime);
+  drawFrame();
+  updateHighlight();
+});
+
+document.getElementById('speedSlider').addEventListener('input', e => {
+  speed = parseInt(e.target.value);
+  document.getElementById('speedVal').textContent = speed + '×';
+});
+
+// ═══════════════════════════════════════════════════════════
+// GIF EXPORT
+// ═══════════════════════════════════════════════════════════
+document.getElementById('gifBtn').addEventListener('click', async () => {
+  const btn    = document.getElementById('gifBtn');
+  const status = document.getElementById('gifStatus');
+
+  if (typeof GIF === 'undefined') {
+    status.textContent = 'gif.js not loaded — check internet connection';
+    return;
+  }
+
+  btn.disabled = true;
+  const wasPlaying = isPlaying;
+  if (isPlaying) { isPlaying = false; cancelAnimationFrame(rafId); lastTs = null; }
+
+  const savedTime = animTime;
+  animTime = 0;
+
+  const gif = new GIF({
+    workers: 2,
+    quality: 8,
+    width: canvas.width,
+    height: canvas.height,
+    workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js'
+  });
+
+  const FPS = 15;
+  const STEP = 1 / FPS; // seconds of race time per frame at 1x... but we want reasonable length
+  // Target ~8s gif at 15fps = 120 frames, so race_step = maxTime / 120
+  const raceStep = maxTime / 120;
+
+  let t = 0;
+  function captureNext() {
+    animTime = Math.min(t, maxTime);
+    drawFrame();
+    gif.addFrame(canvas, { copy: true, delay: Math.round(1000 / FPS) });
+    t += raceStep;
+    const pct = Math.round((animTime / maxTime) * 100);
+    status.textContent = `Recording ${pct}%…`;
+    if (animTime < maxTime) {
+      setTimeout(captureNext, 0);
+    } else {
+      status.textContent = 'Encoding…';
+      gif.on('finished', blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'race_replay.gif';
+        a.click();
+        URL.revokeObjectURL(url);
+        status.textContent = 'Saved!';
+        setTimeout(() => { status.textContent = ''; }, 3000);
+      });
+      gif.render();
+      animTime = savedTime;
+      drawFrame();
+      btn.disabled = false;
+    }
+  }
+  captureNext();
+});
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+document.getElementById('scrubber').max = maxTime;
+buildRunnerList();
+buildDeltaTable();
+drawFrame();
+</script>
+
+<!-- gif.js loaded last so missing CDN doesn't block the app -->
+<script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js" onerror="console.warn('gif.js not loaded')"></script>
+
+</body>
+</html>
