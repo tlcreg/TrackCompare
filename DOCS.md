@@ -1,219 +1,140 @@
 # TrackCompare — Documentation
 
-A browser-based race replay tool for track events. Open `index.html` directly in Chrome or Safari — no server needed.
+A browser-based race replay tool for track events. Works on desktop and mobile. Open `index.html` locally, or visit the hosted version at **https://tlcreg.github.io/TrackCompare/**.
 
 ---
 
 ## How to use it
 
-1. Open `index.html` in a browser
-2. Check/uncheck runners in the bottom-left panel to show or hide them
-3. Press **Play** or drag the scrubber to scrub through the race
+1. **Select a race** using the buttons in the top-right (e.g. "5000m", "Mile")
+2. **Check/uncheck runners** in the bottom-left panel to show or hide them on the track
+3. Press **Play** or drag the **scrubber** to move through the race
 4. Adjust **Speed** (1×–60×) to control playback rate
-5. The **Gap vs Leader** table on the right shows each runner's time gap at every split, with the current split highlighted during playback
-6. Press **Export GIF** to capture a full replay as a downloadable `.gif`
+5. The **Gap vs Leader** table shows each runner's cumulative time gap at every split — the current split highlights automatically during playback
+6. On **mobile**, use the **Runners / Splits** tab bar to switch between the two bottom panels
+
+The lap counter in the top-right of the canvas tracks the leader's current lap. For the 5000m, it shows 0 during the 200m opener then 1–12 for each full lap. For the mile, it shows 1–4.
 
 ---
 
-## Adding a new 5000m race
+## Adding a new race
 
-All race data lives in `data.js`. Replace or duplicate it for a new race.
+All race data lives in `races.js`. Each race is one object in the `RACES` array. Adding a new race is just adding a new entry — no changes to `index.html` are needed.
 
-### Step 1 — Fill in `runners`
-
-Each runner entry follows this shape:
+### Race object shape
 
 ```js
 {
-  place: 1,                    // finishing place
-  name: "First Last",
-  finalTime: "16:49.546",      // raw string from timing system
-  cumulative: [
-    "37.738",      // 200m  (cumulative from start)
-    "1:54.364",    // 600m
-    "3:10.837",    // 1000m
-    "4:29.448",    // 1400m
-    "5:49.003",    // 1800m
-    "7:09.970",    // 2200m
-    "8:32.786",    // 2600m
-    "9:57.013",    // 3000m
-    "11:22.073",   // 3400m
-    "12:46.798",   // 3800m
-    "14:13.823",   // 4200m
-    "15:35.935",   // 4600m
-    "16:49.546",   // 5000m  ← must match finalTime
+  id:           'unique_id',          // used internally — no spaces
+  label:        'Display Name',       // shown on the selector button (e.g. "5000m", "Mile")
+  title:        'Event Name',         // drawn on canvas top-center (e.g. "Tucson Track Club Classic")
+  subtitle:     'Subtitle',           // drawn below title (e.g. "5000m  ·  400m Track  ·  March 21, 2026")
+  splitDistances: [200, 600, ...],    // cumulative meters of each split, must match timing system
+  startOffset:  0,                    // meters into the track loop where the race starts (see below)
+  runners: [
+    {
+      place: 1,
+      name: "First Last",
+      finalTime: "16:49.546",         // raw string from timing system — do not round
+      cumulative: ["37.738", "1:54.364", ...],  // one entry per split, must match splitDistances length
+    },
+    // ... more runners
   ],
 }
 ```
 
-**Times are raw strings** — no rounding, exactly as printed by the timing system.
-`toSeconds()` converts them at runtime.
+**Times are raw strings** from the timing system (e.g. `"37.738"` or `"1:54.364"`). Do not round them.
 
-### Step 2 — Confirm `SPLIT_DISTANCES`
+### 5000m example
 
-At the top of `data.js`:
-
-```js
-const SPLIT_DISTANCES = [200, 600, 1000, 1400, 1800, 2200, 2600, 3000, 3400, 3800, 4200, 4600, 5000];
-```
-
-This must match the split columns your timing system exports. The 5000m layout is:
-- **First split:** 200m (half lap, opener)
-- **Remaining splits:** every 400m (one full lap each)
-
-### Step 3 — Done
-
-Reload `index.html`. The app reads `data.js` on load and rebuilds everything automatically.
-
----
-
-## Adding a mile race
-
-### Track geometry of a mile
-
-On a 400m track, **1 mile = 1609.344m = 4 laps + 9.344m**.
-
-In this app, the **finish line** is at the **bottom-right corner** of the animated track (the 200m mark in the current 0-reference system). The mile **start line** sits **9.344m to the left** of that finish corner, on the bottom straight.
-
-### Step 1 — Create `data_mile.js`
-
-Copy `data.js` and change the split structure. A standard mile uses 200m splits:
+The 5000m starts at the top-left of the track (0m) and finishes at the bottom-right (200m on the loop, after 12.5 laps). The timing system reports a 200m opener then every 400m through 5000m:
 
 ```js
-// data_mile.js
-
-const SPLIT_DISTANCES = [200, 400, 600, 800, 1000, 1200, 1400, 1609];
-// or if your timing system uses 200/400/800/1200/1609, adjust accordingly
-
-const runners = [
-  {
-    place: 1,
-    name: "Runner Name",
-    finalTime: "4:05.23",
-    cumulative: [
-      "30.12",    // 200m
-      "1:01.45",  // 400m
-      "1:33.20",  // 600m
-      "2:04.88",  // 800m
-      "2:36.50",  // 1000m
-      "3:08.10",  // 1200m
-      "3:39.75",  // 1400m
-      "4:05.23",  // 1609m (finish)
-    ],
-  },
-  // ... more runners
-];
-```
-
-### Step 2 — Adjust the start offset in `index.html`
-
-The mile start is not at 0m on the track — it's offset so the finish lands at the bottom-right corner.
-
-In `index.html`, find `runnerDist()` and add an offset constant at the top of the script block:
-
-```js
-// For a mile: start is 9.344m before the bottom-right corner (200m mark)
-// Bottom-right = 200m in track coords → mile start = 200 - 9.344 = 190.656m
-const RACE_START_OFFSET = 190.656; // meters — 0 for 5000m, 190.656 for mile
-
-function runnerDist(r, T) {
-  // ... existing logic returns distance from 0
-  // wrap result with offset:
-  return (dist + RACE_START_OFFSET) % totalRaceDistance; // adjust as needed
+{
+  id:           '5k_2027',
+  label:        '5000m',
+  title:        'Your Meet Name',
+  subtitle:     '5000m  ·  400m Track  ·  Date',
+  splitDistances: [200, 600, 1000, 1400, 1800, 2200, 2600, 3000, 3400, 3800, 4200, 4600, 5000],
+  startOffset:  0,
+  runners: [
+    {
+      place: 1, name: "Runner Name", finalTime: "16:49.546",
+      cumulative: ["37.738","1:54.364","3:10.837","4:29.448","5:49.003",
+                   "7:09.970","8:32.786","9:57.013","11:22.073","12:46.798",
+                   "14:13.823","15:35.935","16:49.546"],
+    },
+    // ... more runners
+  ],
 }
 ```
 
-> **Why 190.656m?**
-> The finish is at position 200m on the track loop. Running 1609.344m backwards from 200m:
-> `200 - 1609.344 = -1409.344` → `mod 400 = 190.656m`
-> Positions 190.656m → 200m → (4 more full laps) → 200m again = exactly 1609.344m total.
+### Mile example
 
-### Step 3 — Draw the mile start marker
-
-In `drawFrame()`, add a marker for the start line:
+The mile starts 9.344m before the bottom-right finish corner. That translates to `startOffset: 190.656` in track coordinates. The timing system typically reports splits at 400m, 800m, 1200m, and 1609m:
 
 ```js
-// After the existing drawLapMark calls:
-drawLapMark(190.656, '#00ff88', 2, 'START'); // mile start, 9.344m before bottom-right
-drawLapMark(200,     '#FF4444', 2, 'FINISH'); // shared finish line
+{
+  id:           'mile_2027',
+  label:        'Mile',
+  title:        'Your Meet Name',
+  subtitle:     'Mile  ·  400m Track  ·  Date',
+  splitDistances: [400, 800, 1200, 1609],
+  startOffset:  190.656,
+  runners: [
+    {
+      place: 1, name: "Runner Name", finalTime: "4:35.870",
+      cumulative: ["1:08.846", "2:16.450", "3:26.625", "4:35.870"],
+    },
+    // ... more runners
+  ],
+}
 ```
 
-### Step 4 — Update `SPLIT_DISTANCES` in the HTML
+> **Why 190.656?** The finish line is at 200m on the track loop. A mile = 1609.344m = 4 laps + 9.344m. Working backwards from 200m: `200 − 9.344 = 190.656m`. Runners starting there travel exactly 1609.344m to reach 200m again.
 
-In `index.html`, the `SPLIT_DISTANCES` constant is imported from `data.js` — so as long as your mile `data_mile.js` defines it correctly, no further changes are needed in the JS logic.
+### Mixed heats
 
-### Step 5 — Swap the data file
-
-In `index.html`, change:
-
-```html
-<script src="data.js"></script>
-```
-to:
-```html
-<script src="data_mile.js"></script>
-```
-
----
-
-## Track coordinate system
-
-```
-(CX-SL, CY-TR) ── top straight ──────────── (CX+SL, CY-TR)
-      │                                              │
-   left curve                                   right curve
-   (bulges left)                               (bulges right)
-      │                                              │
-(CX-SL, CY+TR) ── bottom straight ───────── (CX+SL, CY+TR)
-   ↑ START (0m)                                ↑ FINISH (200m = 5000m / mile finish)
-```
-
-- Direction: **counter-clockwise** (top-left → bottom-left → bottom-right → top-right)
-- `CX`, `CY` — canvas center point
-- `SL` — half the straight length in canvas pixels
-- `TR` — curve radius in canvas pixels
-- `PERIM` — total oval perimeter in pixels = `4*SL + 2π*TR`
-- Meters → pixels: multiply by `PERIM / 400`
-
-### Key position landmarks (5000m)
-
-| Distance | Track position | Canvas coords |
-|----------|---------------|---------------|
-| 0m       | Top-left      | `(CX-SL, CY-TR)` |
-| ~85m     | Bottom-left   | `(CX-SL, CY+TR)` |
-| 200m     | Bottom-right  | `(CX+SL, CY+TR)` — **5000m & mile FINISH** |
-| ~285m    | Top-right     | `(CX+SL, CY-TR)` |
-| 400m     | Top-left      | back to start |
-
-### Mile start (for reference)
-
-| | Distance on track | Canvas position |
-|---|---|---|
-| Mile start | 190.656m | 9.344m left of bottom-right corner, on the bottom straight |
-| Mile finish | 200m | Bottom-right corner |
-
----
-
-## Geometry constants (in `index.html`)
+If your timing system combines multiple heats into a single result (as in the mile), just include all runners in the same `runners` array with their combined place numbers. Add a `heat` field for display if you want:
 
 ```js
-const CX = 480;   // horizontal center of canvas
-const CY = 205;   // vertical center of canvas
-const SL = 250;   // half-straight length (px)
-const TR = 130;   // curve radius (px)
+{ place: 12, heat: 'H2', name: "Sarah Jackson", finalTime: "6:12.862", cumulative: [...] }
 ```
 
-Increase `SL` to stretch the straights. Increase `TR` to widen the curves.
-Canvas logical size is set in the `scaleCanvas()` function: currently `W=960, H=410`.
+The `heat` field is stored but not currently displayed on the canvas.
 
 ---
 
-## GIF export notes
+## How `startOffset` works for other events
 
-- GIF export requires an internet connection to load `gif.js` from CDN
-- Captures 120 frames evenly spaced across the full race duration
-- Output is always named `race_replay.gif`
-- If `gif.js` fails to load, the status label will say so — check the browser console
+`startOffset` is the position (in meters around the 400m loop) where the race begins. The finish line is always at 200m on the loop (bottom-right corner of the oval).
+
+| Event | startOffset | Notes |
+|-------|-------------|-------|
+| 5000m | 0 | Starts at top-left (0m), finishes at 200m after 12.5 laps |
+| Mile  | 190.656 | Starts 9.344m before bottom-right, finishes there after 4 laps |
+| 3000m | 200 | Starts at finish line (200m), runs 7.5 laps — `(200+3000)%400=200` ✓ |
+| 1500m | 110 | `(110+1500)%400=210`… verify with your track's start line position |
+| 800m  | 200 | Two laps from the finish line |
+
+For any event, the formula to verify: `(startOffset + raceDistance) % 400` should equal `200` (the finish position).
+
+---
+
+## Lap counter logic
+
+The lap display adapts automatically based on `splitDistances`:
+
+- **If the first split < 400m** (e.g. 200m opener in 5000m): shows `0` during the opener, then counts 1–12 for each full 400m lap after that
+- **If the first split = 400m** (e.g. mile): starts at `1` and advances every 400m up to 4
+
+Total lap count is derived from the race distance — no manual configuration needed.
+
+---
+
+## Colors
+
+Runners are assigned colors in order from the `COLORS` array at the top of `index.html`. The first 14 are set. If you have more than 14 runners, add more color hex values to that array.
 
 ---
 
@@ -222,9 +143,41 @@ Canvas logical size is set in the `scaleCanvas()` function: currently `W=960, H=
 ```
 TrackCompare/
 ├── index.html      — full app (HTML + CSS + JS in one file)
-├── data.js         — race data for the current event
+├── races.js        — all race data (RACES array)
 ├── DOCS.md         — this file
 └── .gitignore
 ```
 
-To run multiple events side by side, duplicate `data.js` (e.g. `data_mile.js`, `data_5k_2027.js`) and swap the `<script src="...">` tag in `index.html`.
+Old standalone data files (`data.js`, `data_5k_h1.js`, `data_mile_h1.js`) are superseded by `races.js` and can be deleted.
+
+---
+
+## Hosting & sharing
+
+The app is hosted on GitHub Pages at **https://tlcreg.github.io/TrackCompare/**.
+
+To update after adding races: commit your changes to `races.js` and push to `main`. GitHub Pages redeploys automatically within ~30 seconds.
+
+To share: paste the URL in an email or text. Recipients open it in any browser — no install required.
+
+---
+
+## Track coordinate system (reference)
+
+```
+(CX-SL, CY-TR) ── top straight ──────────── (CX+SL, CY-TR)
+      │                                              │
+   left curve                                   right curve
+   (bulges left)                               (bulges right)
+      │                                              │
+(CX-SL, CY+TR) ── bottom straight ───────── (CX+SL, CY+TR)
+   ↑ 0m (5000m START)                          ↑ 200m (FINISH for all events)
+```
+
+- Direction: **counter-clockwise** (top-left → bottom-left → bottom-right → top-right)
+- `CX`, `CY` — canvas center (computed dynamically from canvas size)
+- `SL` — half-straight length in pixels (scales with screen width)
+- `TR` — curve radius in pixels (scales with screen width)
+- `PERIM` — total oval perimeter = `4*SL + 2π*TR`
+
+On desktop the canvas is 960×410px. On mobile it scales to fill the screen width proportionally.
