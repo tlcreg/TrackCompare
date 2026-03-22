@@ -766,7 +766,15 @@ function updateHighlight() {
     const row = document.getElementById(`sr${idx}`);
     if (row) {
       row.classList.add('highlight');
-      row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      // Scroll only within the delta-wrap container — never the page
+      const wrap = document.getElementById('delta-wrap');
+      const wrapRect = wrap.getBoundingClientRect();
+      const rowRect  = row.getBoundingClientRect();
+      const stickyH  = 40; // section-title + sticky th row
+      const relTop   = rowRect.top - wrapRect.top;
+      if (relTop < stickyH || relTop > wrap.clientHeight - rowRect.height) {
+        wrap.scrollTop += relTop - stickyH;
+      }
     }
   }
 }
