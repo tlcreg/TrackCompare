@@ -145,6 +145,7 @@
       overflow-y: auto;
       overflow-x: auto;
       padding: 10px 14px;
+      max-height: 210px;
     }
 
     #delta-wrap .section-title {
@@ -262,7 +263,7 @@
         flex-shrink: 0;
       }
       #delta-wrap {
-        height: 210px;
+        max-height: 210px;
         overflow-y: auto;
         overflow-x: auto;
         flex-shrink: 0;
@@ -621,7 +622,7 @@ function drawFrame() {
   ctx.fillText('Timing splits from Roadrunner Race Timing', W - 8, H - 4);
   ctx.fillText('Visualization created by: Tucker Creger', W - 8, H - 15);
   ctx.textAlign = 'left';
-  ctx.fillText('v1.9', 8, H - 4);
+  ctx.fillText('v2.0', 8, H - 4);
 
   // Time + lap overlay (top-right)
   const leaderDist = runnerDist(raceData[0], animTime);
