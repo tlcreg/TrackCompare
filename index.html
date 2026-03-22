@@ -619,7 +619,7 @@ function drawFrame() {
   ctx.fillText('Timing splits from Roadrunner Race Timing', W - 8, H - 4);
   ctx.fillText('Visualization created by: Tucker Creger', W - 8, H - 15);
   ctx.textAlign = 'left';
-  ctx.fillText('v1.6', 8, H - 4);
+  ctx.fillText('v1.7', 8, H - 4);
 
   // Time + lap overlay (top-right)
   const leaderDist = runnerDist(raceData[0], animTime);
@@ -767,14 +767,12 @@ function updateHighlight() {
     const row = document.getElementById(`sr${idx}`);
     if (row) {
       row.classList.add('highlight');
-      // Always pin the highlighted row to the top of the delta-wrap container
+      // Always pin the highlighted row to the top of the delta-wrap container.
+      // scrollTop = idx * rowHeight puts row idx just below the sticky headers.
       const wrap = document.getElementById('delta-wrap');
-      if (getComputedStyle(wrap).display !== 'none') {
-        const stickyH = 40; // section-title + sticky th row
-        const wrapRect = wrap.getBoundingClientRect();
-        const rowRect  = row.getBoundingClientRect();
-        wrap.scrollTop += (rowRect.top - wrapRect.top) - stickyH;
-      }
+      const firstRow = wrap.querySelector('tbody tr');
+      const rowH = firstRow ? firstRow.offsetHeight : 20;
+      wrap.scrollTop = idx * rowH;
     }
   }
 }
