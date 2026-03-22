@@ -142,57 +142,60 @@
     /* ── Delta table (bottom-right) ── */
     #delta-wrap {
       flex: 1;
+      display: flex;
+      flex-direction: column;
+      max-height: 270px;
+      overflow: hidden;
+    }
+
+    #delta-fixed {
+      flex-shrink: 0;
+      padding: 10px 14px 0;
+      background: #0d0d0d;
+      border-bottom: 1px solid #222;
+    }
+
+    #delta-fixed .section-title { margin-bottom: 4px; }
+
+    #delta-scroll {
+      flex: 1;
       overflow-y: auto;
       overflow-x: auto;
-      padding: 10px 14px;
-      max-height: 270px;
+      padding: 0 14px 10px;
+      min-height: 0;
     }
 
-    #delta-wrap .section-title {
-      position: sticky;
-      top: 0;
-      background: #0d0d0d;
-      padding-bottom: 4px;
-      margin-bottom: 0;
-      z-index: 2;
-      box-shadow: 0 4px 0 #0d0d0d;
-    }
-
-    #deltaTable {
+    .delta-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 11px;
       font-family: 'SF Mono', 'Menlo', monospace;
     }
 
-    #deltaTable th {
+    .delta-table th {
       padding: 4px 3px 2px;
       text-align: right;
       font-weight: normal;
-      position: sticky;
-      top: 18px;
       background: #0d0d0d;
       border-bottom: 1px solid #222;
       white-space: nowrap;
       overflow: hidden;
       max-width: 48px;
-      z-index: 1;
-      box-shadow: 0 2px 0 #0d0d0d;
     }
 
-    #deltaTable th:first-child { text-align: left; color: #444; }
+    .delta-table th:first-child { text-align: left; color: #444; }
 
-    #deltaTable td {
+    .delta-table td {
       padding: 3px 3px;
       text-align: right;
       border-bottom: 1px solid #191919;
       color: #555;
     }
 
-    #deltaTable td:first-child { text-align: left; color: #444; }
+    .delta-table td:first-child { text-align: left; color: #444; }
 
-    #deltaTable tr.highlight { background: #0e1e30; }
-    #deltaTable tr.highlight td:first-child { color: #4a9eff; }
+    .delta-table tr.highlight { background: #0e1e30; }
+    .delta-table tr.highlight td:first-child { color: #4a9eff; }
 
     .gap-leader { color: #aaa; }
     .gap-behind { color: #e07070; }
@@ -266,8 +269,6 @@
       }
       #delta-wrap {
         max-height: 270px;
-        overflow-y: auto;
-        overflow-x: auto;
         flex-shrink: 0;
       }
       .tab-hidden { display: none !important; }
@@ -314,11 +315,13 @@
     <div id="runnerList"></div>
   </div>
   <div id="delta-wrap" class="tab-hidden">
-    <div class="section-title">Gap vs Leader</div>
-    <table id="deltaTable">
-      <thead><tr id="deltaHead"></tr></thead>
-      <tbody id="deltaBody"></tbody>
-    </table>
+    <div id="delta-fixed">
+      <div class="section-title">Gap vs Leader</div>
+      <table class="delta-table"><thead><tr id="deltaHead"></tr></thead></table>
+    </div>
+    <div id="delta-scroll">
+      <table class="delta-table"><tbody id="deltaBody"></tbody></table>
+    </div>
   </div>
 </div>
 
@@ -624,7 +627,7 @@ function drawFrame() {
   ctx.fillText('Timing splits from Roadrunner Race Timing', W - 8, H - 4);
   ctx.fillText('Visualization created by: Tucker Creger', W - 8, H - 15);
   ctx.textAlign = 'left';
-  ctx.fillText('v2.1', 8, H - 4);
+  ctx.fillText('v2.2', 8, H - 4);
 
   // Time + lap overlay (top-right)
   const leaderDist = runnerDist(raceData[0], animTime);
@@ -772,12 +775,11 @@ function updateHighlight() {
     const row = document.getElementById(`sr${idx}`);
     if (row) {
       row.classList.add('highlight');
-      // Always pin the highlighted row to the top of the delta-wrap container.
-      // scrollTop = idx * rowHeight puts row idx just below the sticky headers.
-      const wrap = document.getElementById('delta-wrap');
-      const firstRow = wrap.querySelector('tbody tr');
+      // Pin highlighted row to top of the scrollable body.
+      const scroll = document.getElementById('delta-scroll');
+      const firstRow = scroll.querySelector('tbody tr');
       const rowH = firstRow ? firstRow.offsetHeight : 20;
-      wrap.scrollTop = idx * rowH;
+      scroll.scrollTop = idx * rowH;
     }
   }
 }
