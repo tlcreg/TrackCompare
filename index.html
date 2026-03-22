@@ -769,10 +769,12 @@ function updateHighlight() {
       row.classList.add('highlight');
       // Always pin the highlighted row to the top of the delta-wrap container
       const wrap = document.getElementById('delta-wrap');
-      const stickyH = 40; // section-title height + sticky th row height
-      let top = 0, el = row;
-      while (el && el !== wrap) { top += el.offsetTop; el = el.offsetParent; }
-      wrap.scrollTop = top - stickyH;
+      if (getComputedStyle(wrap).display !== 'none') {
+        const stickyH = 40; // section-title + sticky th row
+        const wrapRect = wrap.getBoundingClientRect();
+        const rowRect  = row.getBoundingClientRect();
+        wrap.scrollTop += (rowRect.top - wrapRect.top) - stickyH;
+      }
     }
   }
 }
