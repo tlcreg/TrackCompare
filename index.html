@@ -64,7 +64,7 @@
     /* ── Bottom row ── */
     #bottom-row {
       display: flex;
-      height: 210px;
+      height: 270px;
       flex-shrink: 0;
       border-top: 1px solid #222;
     }
@@ -145,7 +145,7 @@
       overflow-y: auto;
       overflow-x: auto;
       padding: 10px 14px;
-      max-height: 210px;
+      max-height: 270px;
     }
 
     #delta-wrap .section-title {
@@ -155,6 +155,7 @@
       padding-bottom: 4px;
       margin-bottom: 0;
       z-index: 2;
+      box-shadow: 0 4px 0 #0d0d0d;
     }
 
     #deltaTable {
@@ -176,6 +177,7 @@
       overflow: hidden;
       max-width: 48px;
       z-index: 1;
+      box-shadow: 0 2px 0 #0d0d0d;
     }
 
     #deltaTable th:first-child { text-align: left; color: #444; }
@@ -263,7 +265,7 @@
         flex-shrink: 0;
       }
       #delta-wrap {
-        max-height: 210px;
+        max-height: 270px;
         overflow-y: auto;
         overflow-x: auto;
         flex-shrink: 0;
@@ -622,7 +624,7 @@ function drawFrame() {
   ctx.fillText('Timing splits from Roadrunner Race Timing', W - 8, H - 4);
   ctx.fillText('Visualization created by: Tucker Creger', W - 8, H - 15);
   ctx.textAlign = 'left';
-  ctx.fillText('v2.0', 8, H - 4);
+  ctx.fillText('v2.1', 8, H - 4);
 
   // Time + lap overlay (top-right)
   const leaderDist = runnerDist(raceData[0], animTime);
