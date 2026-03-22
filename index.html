@@ -279,8 +279,7 @@
 <header>
   <h1>TrackCompare</h1>
   <span>Tucson Track Club Classic · March 21, 2026</span>
-  <span style="font-size:10px;color:#333;margin-left:4px;">v1.5</span>
-  <div id="race-selector"></div>
+<div id="race-selector"></div>
 </header>
 
 <div id="canvas-section">
@@ -612,14 +611,15 @@ function drawFrame() {
   ctx.fillText(activeRace.subtitle, CX, 29);
   ctx.textAlign = 'left';
 
-  // Watermark (bottom-right corner)
+  // Watermark (bottom-right) + version (bottom-left)
   ctx.textBaseline = 'bottom';
-  ctx.textAlign = 'right';
   ctx.font = '9px sans-serif';
   ctx.fillStyle = '#444';
+  ctx.textAlign = 'right';
   ctx.fillText('Timing splits from Roadrunner Race Timing', W - 8, H - 4);
   ctx.fillText('Visualization created by: Tucker Creger', W - 8, H - 15);
   ctx.textAlign = 'left';
+  ctx.fillText('v1.5', 8, H - 4);
 
   // Time + lap overlay (top-right)
   const leaderDist = runnerDist(raceData[0], animTime);
