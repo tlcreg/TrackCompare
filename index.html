@@ -627,7 +627,7 @@ function drawFrame() {
   ctx.fillText('Timing splits from Roadrunner Race Timing', W - 8, H - 4);
   ctx.fillText('Visualization created by: Tucker Creger', W - 8, H - 15);
   ctx.textAlign = 'left';
-  ctx.fillText('v2.2', 8, H - 4);
+  ctx.fillText('v2.3', 8, H - 4);
 
   // Time + lap overlay (top-right)
   const leaderDist = runnerDist(raceData[0], animTime);
@@ -726,11 +726,24 @@ function buildRunnerList() {
       <span class="runner-meta">#${r.place} · ${r.finalTime}</span>
     `;
     label.querySelector('input').addEventListener('change', e => {
+      if (e.target.checked && selected.size >= 5) {
+        e.target.checked = false;
+        return;
+      }
       e.target.checked ? selected.add(i) : selected.delete(i);
+      updateCheckboxStates();
       buildDeltaTable();
       drawFrame();
     });
     list.appendChild(label);
+  });
+  updateCheckboxStates();
+}
+
+function updateCheckboxStates() {
+  const atMax = selected.size >= 5;
+  document.querySelectorAll('#runnerList input[type=checkbox]').forEach(cb => {
+    if (!cb.checked) cb.disabled = atMax;
   });
 }
 
@@ -762,6 +775,16 @@ function buildDeltaTable() {
         }).join('')}
       </tr>`
     ).join('');
+
+  // Sync header column widths to body column widths so both tables align
+  requestAnimationFrame(() => {
+    const firstRow = document.querySelector('#deltaBody tr');
+    if (!firstRow) return;
+    const headCells = [...document.querySelectorAll('#deltaHead th')];
+    [...firstRow.querySelectorAll('td')].forEach((td, i) => {
+      if (headCells[i]) headCells[i].style.width = td.offsetWidth + 'px';
+    });
+  });
 }
 
 function updateHighlight() {
