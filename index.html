@@ -30,16 +30,16 @@
     header h1 { font-size: 15px; font-weight: 700; color: #fff; }
     header span { font-size: 11px; color: #555; }
 
-    #main { display: flex; flex: 1; overflow: hidden; }
-
-    /* ── Left panel ── */
-    #left-panel {
+    /* ── Canvas section (top, centered) ── */
+    #canvas-section {
       flex: 1;
       display: flex;
       flex-direction: column;
-      padding: 12px;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 12px 6px;
       gap: 8px;
-      min-width: 0;
+      min-height: 0;
     }
 
     #canvas-wrap {
@@ -56,7 +56,16 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      width: 960px;
       flex-wrap: wrap;
+    }
+
+    /* ── Bottom row ── */
+    #bottom-row {
+      display: flex;
+      height: 210px;
+      flex-shrink: 0;
+      border-top: 1px solid #222;
     }
 
     button {
@@ -88,34 +97,39 @@
 
     #gifStatus { font-size: 11px; color: #666; white-space: nowrap; }
 
-    /* ── Right panel ── */
-    #right-panel {
-      width: 300px;
-      flex-shrink: 0;
-      display: flex;
-      flex-direction: column;
-      border-left: 1px solid #222;
-      overflow: hidden;
-    }
-
-    .panel-section {
-      padding: 10px 12px;
-      border-bottom: 1px solid #1e1e1e;
-    }
-
     .section-title {
       font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 0.8px;
       color: #444;
-      margin-bottom: 7px;
+      margin-bottom: 6px;
     }
 
-    /* Runner list */
+    /* ── Runner list (bottom-left) ── */
+    #runner-section {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 14px;
+      border-right: 1px solid #222;
+    }
+
+    #runner-section .section-title {
+      position: sticky;
+      top: 0;
+      background: #0d0d0d;
+      padding-bottom: 4px;
+    }
+
+    #runnerList {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      column-gap: 8px;
+    }
+
     .runner-row {
       display: flex;
       align-items: center;
-      gap: 7px;
+      gap: 6px;
       padding: 2px 0;
       cursor: pointer;
       user-select: none;
@@ -123,14 +137,15 @@
 
     .runner-row input[type=checkbox] { cursor: pointer; flex-shrink: 0; }
     .color-swatch { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-    .runner-name { flex: 1; }
+    .runner-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .runner-meta { color: #444; font-size: 11px; white-space: nowrap; }
 
-    /* Delta table */
+    /* ── Delta table (bottom-right) ── */
     #delta-wrap {
       flex: 1;
       overflow-y: auto;
-      padding: 10px 12px;
+      overflow-x: auto;
+      padding: 10px 14px;
     }
 
     #delta-wrap .section-title {
@@ -187,42 +202,37 @@
   <span>5000m · 400m track · March 2026</span>
 </header>
 
-<div id="main">
-
-  <div id="left-panel">
-    <div id="canvas-wrap">
-      <canvas id="trackCanvas" width="720" height="260"></canvas>
-    </div>
-
-    <div id="controls">
-      <button id="playBtn">▶ Play</button>
-      <button id="resetBtn">↺ Reset</button>
-      <input type="range" id="scrubber" min="0" step="0.05" value="0">
-      <span id="timeDisplay">0:00.0</span>
-      <div class="speed-group">
-        Speed
-        <input type="range" id="speedSlider" min="1" max="60" value="10">
-        <span id="speedVal">10×</span>
-      </div>
-      <button id="gifBtn">⬇ Export GIF</button>
-      <span id="gifStatus"></span>
-    </div>
+<div id="canvas-section">
+  <div id="canvas-wrap">
+    <canvas id="trackCanvas"></canvas>
   </div>
-
-  <div id="right-panel">
-    <div class="panel-section">
-      <div class="section-title">Runners</div>
-      <div id="runnerList"></div>
+  <div id="controls">
+    <button id="playBtn">▶ Play</button>
+    <button id="resetBtn">↺ Reset</button>
+    <input type="range" id="scrubber" min="0" step="0.05" value="0">
+    <span id="timeDisplay">0:00.0</span>
+    <div class="speed-group">
+      Speed
+      <input type="range" id="speedSlider" min="1" max="60" value="10">
+      <span id="speedVal">10×</span>
     </div>
-    <div id="delta-wrap">
-      <div class="section-title">Gap vs Leader (s)</div>
-      <table id="deltaTable">
-        <thead><tr id="deltaHead"></tr></thead>
-        <tbody id="deltaBody"></tbody>
-      </table>
-    </div>
+    <button id="gifBtn">⬇ Export GIF</button>
+    <span id="gifStatus"></span>
   </div>
+</div>
 
+<div id="bottom-row">
+  <div id="runner-section">
+    <div class="section-title">Runners</div>
+    <div id="runnerList"></div>
+  </div>
+  <div id="delta-wrap">
+    <div class="section-title">Gap vs Leader</div>
+    <table id="deltaTable">
+      <thead><tr id="deltaHead"></tr></thead>
+      <tbody id="deltaBody"></tbody>
+    </table>
+  </div>
 </div>
 
 <script src="data.js"></script>
@@ -250,10 +260,10 @@ const COLORS = [
 // ═══════════════════════════════════════════════════════════
 // TRACK GEOMETRY  (canvas px)
 // ═══════════════════════════════════════════════════════════
-const CX = 355, CY = 128;
-const SL = 145;   // half-straight length
-const TR = 68;    // curve radius
-const PERIM = 4 * SL + 2 * Math.PI * TR; // ~1007 px → 400 m
+const CX = 480, CY = 150;
+const SL = 210;   // half-straight length
+const TR = 95;    // curve radius
+const PERIM = 4 * SL + 2 * Math.PI * TR; // ~1437 px → 400 m
 
 function trackPos(distMeters) {
   const d = ((distMeters % 400) + 400) % 400;
@@ -684,7 +694,7 @@ document.getElementById('gifBtn').addEventListener('click', async () => {
 // Crisp rendering on retina/HiDPI displays
 (function scaleCanvas() {
   const dpr = window.devicePixelRatio || 1;
-  const W = 720, H = 260;
+  const W = 960, H = 300;
   canvas.width  = W * dpr;
   canvas.height = H * dpr;
   canvas.style.width  = W + 'px';
