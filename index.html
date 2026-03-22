@@ -382,17 +382,35 @@ function drawFrame() {
     .map(i => ({ i, d: runnerDist(raceData[i], animTime) }))
     .sort((a, b) => b.d - a.d);
 
+  const leaderD = order[0]?.d ?? 0;
+
   ctx.textBaseline = 'top';
-  const infieldX = CX - SL + 18;
-  const infieldY = CY - 32;
+  const infieldX = CX - SL + 14;
+  const infieldY = CY - (order.length * 13) / 2;
   order.forEach(({ i, d }, rank) => {
     const r = raceData[i];
     const done = d >= 5000;
-    ctx.font = `${rank < 3 ? 'bold ' : ''}10px sans-serif`;
+    const gapM = leaderD - d; // meters behind leader
+
+    ctx.font = `${rank === 0 ? 'bold ' : ''}10px sans-serif`;
     ctx.fillStyle = done ? '#555' : COLORS[i];
-    const laps = Math.floor(d / 400);
-    const label = `${rank + 1}. ${r.name.split(' ')[0]}${done ? ' ✓' : ''}`;
-    ctx.fillText(label, infieldX, infieldY + rank * 13);
+
+    const namePart = `${rank + 1}. ${r.name.split(' ')[0]}${done ? ' ✓' : ''}`;
+    ctx.fillText(namePart, infieldX, infieldY + rank * 13);
+
+    // Gap in meters (skip for leader and at start)
+    if (rank > 0 && gapM > 0.5 && animTime > 2) {
+      const gapLabel = `-${gapM.toFixed(0)}m`;
+      ctx.font = '9px monospace';
+      ctx.fillStyle = '#aa4444';
+      const nameWidth = (() => {
+        ctx.font = `${rank === 0 ? 'bold ' : ''}10px sans-serif`;
+        const w = ctx.measureText(namePart).width;
+        ctx.font = '9px monospace';
+        return w;
+      })();
+      ctx.fillText(gapLabel, infieldX + nameWidth + 4, infieldY + rank * 13 + 1);
+    }
   });
 
   // Runner dots (draw back-runners first so leaders render on top)
