@@ -322,9 +322,9 @@ function drawOval(lineWidth, color) {
   ctx.beginPath();
   ctx.moveTo(CX - SL, CY + TR);
   ctx.lineTo(CX + SL, CY + TR);
-  ctx.arc(CX + SL, CY, TR, Math.PI / 2, -Math.PI / 2, false);
+  ctx.arc(CX + SL, CY, TR, Math.PI / 2, -Math.PI / 2, true);
   ctx.lineTo(CX - SL, CY - TR);
-  ctx.arc(CX - SL, CY, TR, -Math.PI / 2, Math.PI / 2, false);
+  ctx.arc(CX - SL, CY, TR, -Math.PI / 2, Math.PI / 2, true);
   ctx.closePath();
   ctx.stroke();
 }
@@ -356,18 +356,18 @@ function drawFrame() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Track layers
-  drawOval(26, '#1a1a1a');   // border/shadow
-  drawOval(22, '#2b2b2b');   // track surface
-  drawOval(14, '#333');      // inner lane
+  drawOval(26, '#1a0800');   // border/shadow
+  drawOval(22, '#cc5500');   // track surface (orange)
+  drawOval(12, '#e06010');   // inner highlight
 
   // Infield
   ctx.fillStyle = '#1a2a1a';
   ctx.beginPath();
   ctx.moveTo(CX - SL, CY + TR - 11);
   ctx.lineTo(CX + SL, CY + TR - 11);
-  ctx.arc(CX + SL, CY, TR - 11, Math.PI / 2, -Math.PI / 2, false);
+  ctx.arc(CX + SL, CY, TR - 11, Math.PI / 2, -Math.PI / 2, true);
   ctx.lineTo(CX - SL, CY - TR + 11);
-  ctx.arc(CX - SL, CY, TR - 11, -Math.PI / 2, Math.PI / 2, false);
+  ctx.arc(CX - SL, CY, TR - 11, -Math.PI / 2, Math.PI / 2, true);
   ctx.closePath();
   ctx.fill();
 
@@ -408,6 +408,17 @@ function drawFrame() {
     ctx.lineWidth = 1.5;
     ctx.stroke();
   });
+
+  // Race title
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.fillStyle = '#fff';
+  ctx.fillText('Tucson Track Club Classic', canvas.width / 2, 8);
+  ctx.font = '10px sans-serif';
+  ctx.fillStyle = '#666';
+  ctx.fillText('5000m · 400m Track', canvas.width / 2, 24);
+  ctx.textAlign = 'left';
 
   // Time + lap overlay (top-right)
   const leaderDist = runnerDist(raceData[0], animTime);
