@@ -259,24 +259,26 @@ function trackPos(distMeters) {
   const d = ((distMeters % 400) + 400) % 400;
   const px = d * (PERIM / 400);
 
-  const s1 = 2 * SL;            // end of top straight
-  const s2 = s1 + Math.PI * TR; // end of right curve
-  const s3 = s2 + 2 * SL;       // end of bottom straight
+  // Counter-clockwise: top-left → bottom-left → bottom-right → top-right → top-left
+  const s1 = Math.PI * TR;         // end of left curve  (~85m)
+  const s2 = s1 + 2 * SL;          // end of bottom straight (= 200m exactly = finish)
+  const s3 = s2 + Math.PI * TR;    // end of right curve  (~285m)
+  // s4 = PERIM = end of top straight (= 400m, back to start)
 
   if (px <= s1) {
-    // Top straight — going RIGHT
-    return { x: CX - SL + px, y: CY - TR };
-  } else if (px <= s2) {
-    // Right curve — clockwise (top-right → bottom-right, bulging right)
-    const a = -Math.PI / 2 + (px - s1) / TR;
-    return { x: CX + SL + TR * Math.cos(a), y: CY + TR * Math.sin(a) };
-  } else if (px <= s3) {
-    // Bottom straight — going LEFT
-    return { x: CX + SL - (px - s2), y: CY + TR };
-  } else {
-    // Left curve — clockwise (bottom-left → top-left, bulging left)
-    const a = Math.PI / 2 + (px - s3) / TR;
+    // Left curve — counter-clockwise (top-left ↓ bottom-left, bulges left)
+    const a = -Math.PI / 2 - px / TR;
     return { x: CX - SL + TR * Math.cos(a), y: CY + TR * Math.sin(a) };
+  } else if (px <= s2) {
+    // Bottom straight — going RIGHT
+    return { x: CX - SL + (px - s1), y: CY + TR };
+  } else if (px <= s3) {
+    // Right curve — counter-clockwise (bottom-right ↑ top-right, bulges right)
+    const a = Math.PI / 2 - (px - s2) / TR;
+    return { x: CX + SL + TR * Math.cos(a), y: CY + TR * Math.sin(a) };
+  } else {
+    // Top straight — going LEFT
+    return { x: CX + SL - (px - s3), y: CY - TR };
   }
 }
 
@@ -324,11 +326,11 @@ function drawOval(lineWidth, color) {
   ctx.lineWidth = lineWidth;
   ctx.lineCap = 'butt';
   ctx.beginPath();
-  ctx.moveTo(CX - SL, CY - TR);          // start: top-left
-  ctx.lineTo(CX + SL, CY - TR);          // top straight → right
-  ctx.arc(CX + SL, CY, TR, -Math.PI / 2, Math.PI / 2, false);  // right curve ↓
-  ctx.lineTo(CX - SL, CY + TR);          // bottom straight ← left
-  ctx.arc(CX - SL, CY, TR, Math.PI / 2, -Math.PI / 2, false);  // left curve ↑
+  ctx.moveTo(CX - SL, CY - TR);                                  // top-left (start)
+  ctx.arc(CX - SL, CY, TR, -Math.PI / 2, Math.PI / 2, true);    // left curve ↓ (CCW)
+  ctx.lineTo(CX + SL, CY + TR);                                  // bottom straight →
+  ctx.arc(CX + SL, CY, TR, Math.PI / 2, -Math.PI / 2, true);    // right curve ↑ (CCW)
+  ctx.lineTo(CX - SL, CY - TR);                                  // top straight ←
   ctx.closePath();
   ctx.stroke();
 }
@@ -369,10 +371,10 @@ function drawFrame() {
   ctx.fillStyle = '#1a2a1a';
   ctx.beginPath();
   ctx.moveTo(CX - SL, CY - ir);
-  ctx.lineTo(CX + SL, CY - ir);
-  ctx.arc(CX + SL, CY, ir, -Math.PI / 2, Math.PI / 2, false);
-  ctx.lineTo(CX - SL, CY + ir);
-  ctx.arc(CX - SL, CY, ir, Math.PI / 2, -Math.PI / 2, false);
+  ctx.arc(CX - SL, CY, ir, -Math.PI / 2, Math.PI / 2, true);
+  ctx.lineTo(CX + SL, CY + ir);
+  ctx.arc(CX + SL, CY, ir, Math.PI / 2, -Math.PI / 2, true);
+  ctx.lineTo(CX - SL, CY - ir);
   ctx.closePath();
   ctx.fill();
 
