@@ -213,11 +213,15 @@
 
     /* ── Mobile layout ── */
     @media (max-width: 767px) {
-      body { overflow-y: auto; }
+      body {
+        height: auto;
+        min-height: 100dvh;
+        overflow-y: auto;
+      }
 
       header { padding: 7px 10px; flex-wrap: wrap; gap: 6px; }
 
-      #canvas-section { padding: 6px 0 4px; gap: 6px; }
+      #canvas-section { flex: none; padding: 6px 0 4px; gap: 6px; }
       #canvas-wrap { border-radius: 0; border-left: none; border-right: none; }
       #controls { width: 100%; padding: 0 10px; box-sizing: border-box; }
 
@@ -225,6 +229,7 @@
         flex-direction: column;
         height: auto;
         border-top: none;
+        flex: none;
       }
 
       #tab-bar {
@@ -249,11 +254,14 @@
 
       #runner-section {
         border-right: none;
-        height: 220px;
+        height: 260px;
+        overflow-y: auto;
         flex-shrink: 0;
       }
       #delta-wrap {
-        height: 220px;
+        height: 260px;
+        overflow-y: auto;
+        overflow-x: auto;
         flex-shrink: 0;
       }
       .tab-hidden { display: none !important; }
@@ -787,7 +795,7 @@ function scaleCanvas() {
   const dpr = window.devicePixelRatio || 1;
   const mobile = window.innerWidth < 768;
   W = mobile ? window.innerWidth : 960;
-  H = mobile ? Math.round(W * (410 / 960)) : 410;
+  H = mobile ? Math.round(W * 0.58) : 410;  // taller ratio gives oval room below the title
   canvas.width  = W * dpr;
   canvas.height = H * dpr;
   canvas.style.width  = W + 'px';
