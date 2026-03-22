@@ -192,6 +192,7 @@
     .gap-leader { color: #aaa; }
     .gap-behind { color: #e07070; }
     .gap-ahead  { color: #6ecf8e; }
+    .lap-split  { color: #484848; font-size: 10px; }
 
     /* ── Race selector ── */
     #race-selector { display: flex; gap: 6px; margin-left: auto; }
@@ -674,6 +675,12 @@ function fmtTime(s) {
   return `${m}:${rem}`;
 }
 
+function fmtInterval(secs) {
+  const m = Math.floor(secs / 60);
+  const s = (secs % 60).toFixed(1);
+  return m > 0 ? `${m}:${s.padStart(4, '0')}` : s;
+}
+
 function fmtDelta(secs) {
   if (secs < 0.001) return '—';
   const sign = secs < 0 ? '−' : '+';
@@ -736,10 +743,13 @@ function buildDeltaTable() {
       `<tr id="sr${si}">
         <td>${dist}m</td>
         ${sel.map(i => {
-          const gap = raceData[i].cumSecs[si] - leaderSecs[si];
-          if (i === 0) return `<td class="gap-leader">${raceData[i].cumulative[si]}</td>`;
-          if (gap < 0.001) return `<td class="gap-leader">${raceData[i].cumulative[si]}</td>`;
-          return `<td class="gap-behind">${fmtDelta(gap)}</td>`;
+          const gap      = raceData[i].cumSecs[si] - leaderSecs[si];
+          const prevSecs = si > 0 ? raceData[i].cumSecs[si - 1] : 0;
+          const interval = raceData[i].cumSecs[si] - prevSecs;
+          const lapTag   = ` <span class="lap-split">(${fmtInterval(interval)})</span>`;
+          if (i === 0) return `<td class="gap-leader">${raceData[i].cumulative[si]}${lapTag}</td>`;
+          if (gap < 0.001) return `<td class="gap-leader">${raceData[i].cumulative[si]}${lapTag}</td>`;
+          return `<td class="gap-behind">${fmtDelta(gap)}${lapTag}</td>`;
         }).join('')}
       </tr>`
     ).join('');
