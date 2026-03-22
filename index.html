@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TrackCompare — 5000m</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -56,7 +57,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      width: 960px;
+      width: min(960px, 100%);
       flex-wrap: wrap;
     }
 
@@ -206,6 +207,62 @@
     }
     .race-btn:hover { background: #2a2a2a; color: #ccc; }
     .race-btn.active { background: #004eaa; border-color: #0066cc; color: #fff; }
+
+    /* ── Tab bar (mobile only) ── */
+    #tab-bar { display: none; }
+
+    /* ── Mobile layout ── */
+    @media (max-width: 767px) {
+      body { overflow-y: auto; }
+
+      header { padding: 7px 10px; flex-wrap: wrap; gap: 6px; }
+
+      #canvas-section { padding: 6px 0 4px; gap: 6px; }
+      #canvas-wrap { border-radius: 0; border-left: none; border-right: none; }
+      #controls { width: 100%; padding: 0 10px; box-sizing: border-box; }
+
+      #bottom-row {
+        flex-direction: column;
+        height: auto;
+        border-top: none;
+      }
+
+      #tab-bar {
+        display: flex;
+        flex-shrink: 0;
+        border-top: 1px solid #222;
+        border-bottom: 1px solid #222;
+      }
+      .tab-btn {
+        flex: 1;
+        background: #161616;
+        color: #666;
+        border: none;
+        border-right: 1px solid #222;
+        border-radius: 0;
+        padding: 10px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .tab-btn:last-child { border-right: none; }
+      .tab-btn.active { color: #fff; background: #0d0d0d; border-bottom: 2px solid #0066cc; }
+
+      #runner-section {
+        border-right: none;
+        height: 220px;
+        flex-shrink: 0;
+      }
+      #delta-wrap {
+        height: 220px;
+        flex-shrink: 0;
+      }
+      .tab-hidden { display: none !important; }
+
+      #runnerList { grid-template-columns: 1fr; }
+
+      button, .race-btn { padding: 7px 14px; font-size: 13px; }
+      #scrubber { min-width: 80px; }
+    }
   </style>
 </head>
 <body>
@@ -234,6 +291,10 @@
 </div>
 
 <div id="bottom-row">
+  <div id="tab-bar">
+    <button class="tab-btn active" data-tab="runners">Runners</button>
+    <button class="tab-btn" data-tab="splits">Splits</button>
+  </div>
   <div id="runner-section">
     <div class="section-title">Runners</div>
     <div id="runnerList"></div>
@@ -270,12 +331,19 @@ const COLORS = [
 ];
 
 // ═══════════════════════════════════════════════════════════
-// TRACK GEOMETRY  (canvas px)
+// TRACK GEOMETRY  (canvas px — recomputed on resize)
 // ═══════════════════════════════════════════════════════════
-const CX = 480, CY = 205;
-const SL = 250;   // half-straight length
-const TR = 130;   // curve radius
-const PERIM = 4 * SL + 2 * Math.PI * TR; // ~1817 px → 400 m
+let W = 960, H = 410, canvasScale = 1;
+let CX, CY, SL, TR, PERIM;
+
+function computeGeometry() {
+  CX = W / 2;
+  CY = H / 2;
+  canvasScale = Math.min(W / 960, H / 410);
+  SL = Math.round(250 * canvasScale);
+  TR = Math.round(130 * canvasScale);
+  PERIM = 4 * SL + 2 * Math.PI * TR;
+}
 
 // trackPosLoop: takes a raw loop position (0–400m), no startOffset applied
 function trackPosLoop(loopMeters) {
@@ -473,31 +541,34 @@ function drawFrame() {
   const leaderD = order[0]?.d ?? 0;
 
   ctx.textBaseline = 'top';
-  const infieldX = CX - SL + 14;
-  const infieldY = CY - (order.length * 13) / 2;
+  const ifSize = Math.max(7, Math.round(10 * canvasScale));
+  const ifRow  = Math.round(ifSize * 1.4);
+  const infieldX = CX - SL + Math.round(14 * canvasScale);
+  const infieldY = CY - (order.length * ifRow) / 2;
   order.forEach(({ i, d }, rank) => {
     const r = raceData[i];
-    const done = d >= 5000;
+    const done = d >= totalDist;
     const gapM = leaderD - d; // meters behind leader
 
-    ctx.font = `${rank === 0 ? 'bold ' : ''}10px sans-serif`;
+    ctx.font = `${rank === 0 ? 'bold ' : ''}${ifSize}px sans-serif`;
     ctx.fillStyle = done ? '#555' : COLORS[i];
 
     const namePart = `${rank + 1}. ${r.name.split(' ')[0]}${done ? ' ✓' : ''}`;
-    ctx.fillText(namePart, infieldX, infieldY + rank * 13);
+    ctx.fillText(namePart, infieldX, infieldY + rank * ifRow);
 
     // Gap in meters (skip for leader and at start)
     if (rank > 0 && gapM > 0.5 && animTime > 2) {
       const gapLabel = `-${gapM.toFixed(0)}m`;
-      ctx.font = '9px monospace';
+      const gapSize = Math.max(6, Math.round(9 * canvasScale));
+      ctx.font = `${gapSize}px monospace`;
       ctx.fillStyle = '#aa4444';
       const nameWidth = (() => {
-        ctx.font = `${rank === 0 ? 'bold ' : ''}10px sans-serif`;
+        ctx.font = `${rank === 0 ? 'bold ' : ''}${ifSize}px sans-serif`;
         const w = ctx.measureText(namePart).width;
-        ctx.font = '9px monospace';
+        ctx.font = `${gapSize}px monospace`;
         return w;
       })();
-      ctx.fillText(gapLabel, infieldX + nameWidth + 4, infieldY + rank * 13 + 1);
+      ctx.fillText(gapLabel, infieldX + nameWidth + 4, infieldY + rank * ifRow + 1);
     }
   });
 
@@ -507,7 +578,7 @@ function drawFrame() {
     const done = d >= 5000;
 
     ctx.beginPath();
-    ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2);
+    ctx.arc(pos.x, pos.y, Math.max(3, Math.round(6 * canvasScale)), 0, Math.PI * 2);
     ctx.fillStyle = done ? '#333' : COLORS[i];
     ctx.fill();
     ctx.strokeStyle = '#111';
@@ -521,10 +592,10 @@ function drawFrame() {
   ctx.textAlign = 'center';
   ctx.font = 'bold 15px sans-serif';
   ctx.fillStyle = '#fff';
-  ctx.fillText(activeRace.title, 480, 10);
+  ctx.fillText(activeRace.title, CX, 10);
   ctx.font = '11px sans-serif';
   ctx.fillStyle = '#888';
-  ctx.fillText(activeRace.subtitle, 480, 29);
+  ctx.fillText(activeRace.subtitle, CX, 29);
   ctx.textAlign = 'left';
 
   // Watermark (bottom-right corner)
@@ -532,8 +603,8 @@ function drawFrame() {
   ctx.textAlign = 'right';
   ctx.font = '9px sans-serif';
   ctx.fillStyle = '#444';
-  ctx.fillText('Timing splits from Roadrunner Race Timing', 952, 406);
-  ctx.fillText('Visualization created by: Tucker Creger', 952, 395);
+  ctx.fillText('Timing splits from Roadrunner Race Timing', W - 8, H - 4);
+  ctx.fillText('Visualization created by: Tucker Creger', W - 8, H - 15);
   ctx.textAlign = 'left';
 
   // Time + lap overlay (top-right)
@@ -543,10 +614,10 @@ function drawFrame() {
   ctx.font = 'bold 11px monospace';
   ctx.fillStyle = '#fff';
   const tStr = fmtTime(animTime);
-  ctx.fillText(tStr, canvas.width - ctx.measureText(tStr).width - 10, 10);
+  ctx.fillText(tStr, W - ctx.measureText(tStr).width - 10, 10);
   ctx.font = '10px sans-serif';
   ctx.fillStyle = '#555';
-  ctx.fillText(`Lap ${lap} / ${totalLaps}`, canvas.width - 70, 24);
+  ctx.fillText(`Lap ${lap} / ${totalLaps}`, W - 70, 24);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -711,17 +782,40 @@ document.getElementById('speedSlider').addEventListener('input', e => {
 // INIT
 // ═══════════════════════════════════════════════════════════
 
-// Crisp rendering on retina/HiDPI displays
-(function scaleCanvas() {
+// Crisp rendering on retina/HiDPI displays, responsive on mobile
+function scaleCanvas() {
   const dpr = window.devicePixelRatio || 1;
-  const W = 960, H = 410;
+  const mobile = window.innerWidth < 768;
+  W = mobile ? window.innerWidth : 960;
+  H = mobile ? Math.round(W * (410 / 960)) : 410;
   canvas.width  = W * dpr;
   canvas.height = H * dpr;
   canvas.style.width  = W + 'px';
   canvas.style.height = H + 'px';
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(dpr, dpr);
-})();
+  computeGeometry();
+}
 
+// Rebuild canvas + redraw on window resize (debounced)
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { scaleCanvas(); drawFrame(); }, 100);
+});
+
+// Tab switching (mobile)
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.getElementById('runner-section').classList.toggle('tab-hidden', tab !== 'runners');
+    document.getElementById('delta-wrap').classList.toggle('tab-hidden', tab !== 'splits');
+  });
+});
+
+scaleCanvas();
 buildRaceSelector();
 loadRace(RACES[0]);
 </script>
