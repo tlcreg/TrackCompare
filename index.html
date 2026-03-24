@@ -4,6 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TrackCompare — 5000m</title>
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-620QN7GNLT"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-620QN7GNLT');
+  </script>
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -462,6 +472,7 @@ function buildRaceSelector() {
     btn.addEventListener('click', () => {
       el.querySelectorAll('.race-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      gtag('event', 'select_race', { race: race.id });
       loadRace(race);
     });
     el.appendChild(btn);
@@ -731,6 +742,7 @@ function buildRunnerList() {
         return;
       }
       e.target.checked ? selected.add(i) : selected.delete(i);
+      gtag('event', 'toggle_runner', { runner: raceData[i].name, checked: e.target.checked });
       updateCheckboxStates();
       buildDeltaTable();
       drawFrame();
@@ -817,6 +829,7 @@ document.getElementById('playBtn').addEventListener('click', () => {
     if (animTime >= maxTime) animTime = 0;
     lastTs = null;
     rafId = requestAnimationFrame(tick);
+    gtag('event', 'play', { race: RACES.find(r => r.splitDistances === SPLIT_DISTANCES)?.id });
   } else {
     cancelAnimationFrame(rafId);
     lastTs = null;
